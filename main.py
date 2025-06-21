@@ -59,8 +59,21 @@ class StudentAnswer(db.Model):
     ai_feedback = db.Column(db.Text)
     created_at = db.Column(db.DateTime, nullable=False)
 
-# 初始化 Pix2Text（p2t）辨識器
-p2t = Pix2Text()
+# 全域 p2t 實例，初始為 None
+p2t = None
+
+def get_p2t():
+    """
+    延遲載入函式 (Lazy Loading)。
+    第一次呼叫時才初始化 Pix2Text 模型，之後直接回傳已建立的實例。
+    """
+    global p2t
+    if p2t is None:
+        # 為了讓 Render 知道服務正在啟動，我們在這裡印出日誌
+        print("Initializing Pix2Text model for the first time. This may take a moment...")
+        p2t = Pix2Text()
+        print("Pix2Text model initialized successfully.")
+    return p2t
 
 # 允許的檔案格式
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff'}
@@ -111,7 +124,9 @@ def upload_questions():
             img_b64_list.append(img_b64)
         # 用 p2t 辨識題目文字
         try:
-            q_text = p2t.recognize(filepath)
+            # 透過 get_p2t() 取得辨識器
+            recognizer = get_p2t()
+            q_text = recognizer.recognize(filepath)
         except Exception as e:
             q_text = ''
         questions.append({'type': 'img', 'content': f'/uploads/{unique_filename}', 'text': q_text, 'image_path': unique_filename})
@@ -198,7 +213,9 @@ def upload_answer():
     file.save(filepath)
     # 用 p2t 辨識學生答案
     try:
-        stu_latex = p2t.recognize(filepath)
+        # 透過 get_p2t() 取得辨識器
+        recognizer = get_p2t()
+        stu_latex = recognizer.recognize(filepath)
     except Exception as e:
         stu_latex = ''
     # 取得參考解答
