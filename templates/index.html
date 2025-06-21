@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手寫數學式辨識系統</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e6f3ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .preview-section {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .latex-code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+
+        .math-preview {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            margin: 15px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>手寫數學式辨識系統</h1>
+            <p>上傳手寫數學式圖片，自動轉換為 LaTeX 格式</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">點擊或拖拽圖片到此處上傳</div>
+                    <div style="color: #999; font-size: 0.9em; margin-top: 10px;">
+                        支援格式：PNG, JPG, JPEG, GIF, BMP, TIFF
+                    </div>
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept="image/*">
+                <button class="btn" onclick="document.getElementById('fileInput').click()">
+                    選擇圖片檔案
+                </button>
+            </div>
+
+            <div class="preview-section">
+                <img id="previewImage" class="preview-image" alt="預覽圖片">
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在辨識中，請稍候...</p>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <h3>辨識結果</h3>
+                <div class="latex-code" id="latexCode"></div>
+                <div class="math-preview" id="mathPreview"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewImage = document.getElementById('previewImage');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const latexCode = document.getElementById('latexCode');
+        const mathPreview = document.getElementById('mathPreview');
+
+        // 拖拽上傳功能
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // 檢查檔案類型
+            if (!file.type.startsWith('image/')) {
+                showError('請選擇圖片檔案');
+                return;
+            }
+
+            // 顯示預覽
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // 上傳並辨識
+            uploadAndRecognize(file);
+        }
+
+        function uploadAndRecognize(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            // 顯示載入狀態
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                
+                if (data.success) {
+                    showResult(data.latex);
+                } else {
+                    showError(data.error || '辨識失敗');
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                showError('網路錯誤：' + error.message);
+            });
+        }
+
+        function showResult(latex) {
+            latexCode.textContent = latex;
+            mathPreview.innerHTML = `$$${latex}$$`;
+            
+            // 重新渲染 MathJax
+            if (window.MathJax) {
+                MathJax.typesetPromise([mathPreview]);
+            }
+            
+            resultSection.style.display = 'block';
+        }
+
+        function showError(message) {
+            // 移除之前的錯誤訊息
+            const existingError = document.querySelector('.error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            
+            const content = document.querySelector('.content');
+            content.insertBefore(errorDiv, content.firstChild);
+            
+            // 3秒後自動移除錯誤訊息
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

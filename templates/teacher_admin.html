@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>老師題組管理</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f7fafc; }
+        .container { max-width: 900px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); padding: 32px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #e2e8f0; }
+        button { padding: 6px 16px; border-radius: 6px; border: none; color: #fff; cursor: pointer; margin: 2px; }
+        .delete-btn { background: #e53e3e; }
+        .link-btn { background: #3182ce; }
+        
+        /* 彈出視窗樣式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: -20px;
+            margin-right: -10px;
+        }
+        .close:hover { color: #000; }
+        .qr-code { margin: 20px 0; }
+        .student-link { 
+            background: #f7fafc; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        .copy-btn {
+            background: #38a169;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .copy-btn:hover { background: #2f855a; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>老師題組管理
+        <button onclick="location.href='/'" style="float:right;background:#3182ce;padding:8px 18px;border-radius:8px;font-size:0.95em;">回出題頁</button>
+    </h1>
+    <table>
+        <thead>
+            <tr>
+                <th>老師</th>
+                <th>Session ID</th>
+                <th>出題時間</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="quizsetTable"></tbody>
+    </table>
+</div>
+
+<!-- 彈出視窗 -->
+<div id="linkModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>學生練習連結</h2>
+        <div class="qr-code" id="qrCode"></div>
+        <div class="student-link" id="studentLink"></div>
+        <button class="copy-btn" onclick="copyLink()">複製連結</button>
+    </div>
+</div>
+
+<script>
+async function loadQuizSets() {
+    const res = await fetch('/api/all_quizsets');
+    const data = await res.json();
+    const tbody = document.getElementById('quizsetTable');
+    tbody.innerHTML = data.map(q =>
+        `<tr>
+            <td>${q.teacher}</td>
+            <td>${q.session_id}</td>
+            <td>${q.created_at}</td>
+            <td>
+                <button class="delete-btn" onclick="deleteQuizSet('${q.session_id}')">刪除</button>
+                <button class="link-btn" onclick="showStudentLink('${q.session_id}')">開啟連結</button>
+            </td>
+        </tr>`
+    ).join('');
+}
+
+async function deleteQuizSet(session_id) {
+    if (!confirm('確定要刪除此題組？')) return;
+    const form = new FormData();
+    form.append('session_id', session_id);
+    const res = await fetch('/api/reset', { method: 'POST', body: form });
+    const data = await res.json();
+    alert(data.msg);
+    loadQuizSets();
+}
+
+function showStudentLink(session_id) {
+    const modal = document.getElementById('linkModal');
+    const qrCodeDiv = document.getElementById('qrCode');
+    const studentLinkDiv = document.getElementById('studentLink');
+    
+    // 生成學生連結
+    const studentUrl = `${window.location.origin}/student/${session_id}`;
+    studentLinkDiv.textContent = studentUrl;
+    
+    // 生成QR code - 使用多個備用方案
+    qrCodeDiv.innerHTML = '';
+    
+    // 方案1: 使用 QR Server API
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(studentUrl)}`;
+    const img = document.createElement('img');
+    img.src = qrUrl;
+    img.alt = 'QR Code';
+    img.style.border = '1px solid #ddd';
+    img.style.borderRadius = '8px';
+    img.style.maxWidth = '200px';
+    img.style.height = 'auto';
+    
+    // 添加載入錯誤處理
+    img.onerror = function() {
+        // 如果第一個API失敗，嘗試Google Charts API
+        this.src = `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(studentUrl)}`;
+        this.onerror = function() {
+            // 如果都失敗，顯示文字提示
+            qrCodeDiv.innerHTML = '<p style="color: #666; font-size: 14px;">QR Code 生成失敗，請直接複製連結使用</p>';
+        };
+    };
+    
+    qrCodeDiv.appendChild(img);
+    
+    modal.style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('linkModal').style.display = 'none';
+}
+
+function copyLink() {
+    const linkText = document.getElementById('studentLink').textContent;
+    navigator.clipboard.writeText(linkText).then(() => {
+        alert('連結已複製到剪貼簿！');
+    }).catch(() => {
+        // 如果 clipboard API 不可用，使用傳統方法
+        const textArea = document.createElement('textarea');
+        textArea.value = linkText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('連結已複製到剪貼簿！');
+    });
+}
+
+// 點擊彈出視窗外部關閉
+window.onclick = function(event) {
+    const modal = document.getElementById('linkModal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
+    }
+}
+
+loadQuizSets();
+</script>
+</body>
+</html> 
