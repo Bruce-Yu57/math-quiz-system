@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory, redirect, url_for, session
-from pix2text import Pix2Text
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -69,6 +68,8 @@ def get_p2t():
     """
     global p2t
     if p2t is None:
+        # 將 import 也移到這裡，實現最徹底的延遲載入
+        from pix2text import Pix2Text
         # 為了讓 Render 知道服務正在啟動，我們在這裡印出日誌
         print("Initializing Pix2Text model for the first time. This may take a moment...")
         p2t = Pix2Text()
