@@ -380,9 +380,11 @@ def get_question_image(question_id):
         return '', 404
 
 # 只保留這一個自動建表區塊
-@app.before_first_request
 def create_tables():
-    db.create_all()
+    with app.app_context():
+        db.create_all()
+
+create_tables()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
