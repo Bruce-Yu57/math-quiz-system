@@ -379,7 +379,7 @@ def get_question_image(question_id):
     else:
         return '', 404
 
-# 自動建立資料表（雲端 gunicorn 也適用）
+# 只保留這一個自動建表區塊
 @app.before_first_request
 def create_tables():
     db.create_all()
