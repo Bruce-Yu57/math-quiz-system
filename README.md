@@ -1,5 +1,43 @@
 # 數學出場卷系統 - 詳細技術說明書
 
+## 環境變數設定
+
+在開始使用系統前，請先設定以下環境變數：
+
+### 1. 建立 .env 檔案
+在專案根目錄建立 `.env` 檔案，內容如下：
+
+```bash
+# OpenAI API 設定
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Hugging Face API 設定
+HF_TOKEN=your_huggingface_token_here
+
+# 資料庫設定 (可選，預設使用 SQLite)
+# DATABASE_URL=postgresql://username:password@localhost/dbname
+
+# 伺服器設定 (可選)
+# PORT=8080
+```
+
+### 2. 取得 API 金鑰
+
+**OpenAI API Key:**
+1. 前往 [OpenAI Platform](https://platform.openai.com/api-keys)
+2. 登入並建立新的 API Key
+3. 複製金鑰並貼到 `.env` 檔案的 `OPENAI_API_KEY` 欄位
+
+**Hugging Face Token:**
+1. 前往 [Hugging Face Settings](https://huggingface.co/settings/tokens)
+2. 登入並建立新的 Access Token
+3. 複製 Token 並貼到 `.env` 檔案的 `HF_TOKEN` 欄位
+
+### 3. 安裝依賴套件
+```bash
+pip install -r requirements.txt
+```
+
 ## 系統概述
 
 這是一個專為數學課堂設計的智能出場卷系統，支援老師上傳數學題目圖片，AI自動生成參考解答，學生透過手寫作答並獲得即時AI批改回饋。
@@ -10,8 +48,8 @@
 - **Flask**: Python Web框架，提供RESTful API
 - **SQLAlchemy**: ORM資料庫操作
 - **SQLite**: 輕量級資料庫
-- **OpenAI GPT-4o**: AI內容生成與批改
-- **Pix2Text (P2T)**: 數學公式OCR辨識
+- **OpenAI GPT-4o**: AI內容生成、批改與印刷題目OCR辨識
+- **Hugging Face API**: 手寫數學公式辨識 (breezedeus/pix2text-mfr)
 - **Werkzeug**: 檔案上傳處理
 
 ### 前端技術棧
@@ -39,7 +77,7 @@
 
 **處理流程：**
 1. 接收多個圖片檔案
-2. 使用P2T進行OCR文字辨識
+2. 使用GPT-4o進行印刷題目OCR辨識
 3. 轉換為Base64格式供GPT-4o圖片API使用
 4. 呼叫GPT-4o生成參考解答（max_tokens=1500）
 5. 儲存到SQLite資料庫
@@ -101,7 +139,7 @@ canvas.addEventListener('pointermove', e => {
 
 ### 2.2 AI批改系統
 **技術架構：**
-- **OCR辨識**：P2T識別手寫數學公式
+- **OCR辨識**：Hugging Face API (breezedeus/pix2text-mfr) 識別手寫數學公式
 - **AI批改**：GPT-4o分析解題邏輯
 - **回饋生成**：max_tokens=1500確保完整回覆
 

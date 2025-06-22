@@ -1,0 +1,6 @@
+# requirements.p2t.txt
+# 專為 P2T API 伺服器使用的套件
+Flask
+pix2text
+Pillow
+gunicorn 

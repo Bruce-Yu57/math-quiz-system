@@ -114,12 +114,25 @@ async function loadQuizSets() {
 
 async function deleteQuizSet(session_id) {
     if (!confirm('確定要刪除此題組？')) return;
-    const form = new FormData();
-    form.append('session_id', session_id);
-    const res = await fetch('/api/reset', { method: 'POST', body: form });
-    const data = await res.json();
-    alert(data.msg);
-    loadQuizSets();
+    try {
+        const res = await fetch('/api/delete_session', { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `session_id=${encodeURIComponent(session_id)}`
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            alert(data.msg);
+            loadQuizSets();
+        } else {
+            alert('刪除失敗：' + data.msg);
+        }
+    } catch (error) {
+        console.error('刪除時發生錯誤:', error);
+        alert('刪除過程中發生網路或伺服器錯誤。');
+    }
 }
 
 function showStudentLink(session_id) {

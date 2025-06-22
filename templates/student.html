@@ -133,7 +133,7 @@ function renderQuestion() {
     const block = document.createElement('div');
     block.className = 'question-block';
     // 將題目區塊的 $...$ 或 $$...$$ 都轉為 display math
-    let qContent = q.type === 'img' ? `<img src='${location.origin}${q.content}' style='max-width:95vw;max-height:220px;box-shadow:0 2px 8px #bbb;border-radius:8px;'>`
+    let qContent = q.type === 'img' ? `<img src='${q.content.startsWith('/') ? location.origin : ''}${q.content}' style='max-width:95vw;max-height:220px;box-shadow:0 2px 8px #bbb;border-radius:8px;'>`
         : q.content.replace(/\$\$(.+?)\$\$/gs, (_, m) => `$$${m}$$`).replace(/\$(.+?)\$/gs, (_, m) => `$$${m}$$`);
     block.innerHTML = `<div style='margin-bottom:18px;'><b>第${currentIdx+1}題：</b><br>${qContent}</div>`;
     // Canvas
@@ -179,6 +179,15 @@ function renderQuestion() {
     submitBtn.onclick = async () => {
         submitBtn.disabled = true;
         resultDiv.innerText = '辨識與批改中...';
+        // 取得原始內容
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // 填白底
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'source-over';
+        // 送出圖片
         canvas.toBlob(async blob => {
             const formData = new FormData();
             formData.append('session_id', sessionId);
@@ -190,16 +199,13 @@ function renderQuestion() {
                 // 添加調試信息
                 console.log('原始AI回覆長度:', data.result.length);
                 console.log('原始AI回覆內容:', data.result);
-                
                 // 將 \( ... \) 轉 $...$，\[ ... \] 轉 $$...$$，並確保 $...$ 也能渲染
                 let html = data.result
                     .replace(/\\\((.+?)\\\)/gs, (_, m) => `$${m}$`)
                     .replace(/\\\[(.+?)\\\]/gs, (_, m) => `$$${m}$$`)
                     .replace(/\n/g, '<br>'); // 保留換行但讓LaTeX保持行內
-                
                 console.log('處理後HTML長度:', html.length);
                 console.log('處理後HTML內容:', html);
-                
                 resultDiv.innerHTML = html;
                 // 若頁面未載入 MathJax，則自動補上
                 if (!window.MathJax) {
@@ -235,6 +241,8 @@ function renderQuestion() {
                 resultDiv.innerHTML = `<span style='color:red;'>${data.error || '批改失敗'}</span>`;
             }
             submitBtn.disabled = false;
+            // 還原畫布內容（避免影響畫面）
+            ctx.putImageData(imageData, 0, 0);
         }, 'image/png');
     };
     block.appendChild(resultDiv);

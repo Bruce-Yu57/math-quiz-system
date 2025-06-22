@@ -19,24 +19,23 @@
         .ai-answer { 
             background: #fff; 
             border-radius: 6px; 
-            padding: 12px; 
+            padding: 8px 12px; 
             margin: 8px 0; 
             border-left: 4px solid #3182ce;
-            line-height: 1.6;
+            line-height: 1.5;
             word-break: break-word;
             white-space: pre-line;
-            max-height: none;
-            overflow-y: visible;
-            overflow-x: auto;
+            font-size: 1em;
         }
         .ai-answer mjx-container {
-            display: inline;
             margin: 0 2px;
             overflow-x: auto;
             max-width: 100%;
+            vertical-align: baseline;
         }
         .ai-answer mjx-container[jax="CHTML"] {
             display: inline !important;
+            vertical-align: baseline;
         }
         .qr-section { text-align: center; margin-top: 32px; }
         .qr-img { margin: 16px auto; display: block; }
@@ -222,12 +221,14 @@ submitBtn.onclick = async () => {
                 let question = (a.question || '(辨識失敗)')
                     .replace(/\$\$(.+?)\$\$/gs, (_, m) => `$$${m}$$`)
                     .replace(/\$(.+?)\$/gs, (_, m) => `$$${m}$$`);
-                let ans = (a.answer || '(AI產生失敗)')
+                // 若 a.content 存在且為圖片，插入圖片預覽
+                let imgHtml = a.content && a.content.startsWith('/api/image/') ? `<img src='${a.content}' style='max-width:95vw;max-height:220px;box-shadow:0 2px 8px #bbb;border-radius:8px;'><br>` : '';
+                let ans = (a.answer || '(AI產生失敗)').trim()
                     .replace(/\\\((.+?)\\\)/gs, (_, m) => `$${m}$`)
                     .replace(/\\\[(.+?)\\\]/gs, (_, m) => `$$${m}$$`)
                     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
                     .replace(/__(.+?)__/g, '<b>$1</b>');
-                return `<div><b>第${i+1}題：</b><br>題目：${question}<br>參考解答：<span class="ai-answer">${ans}</span></div><hr>`;
+                return `<div><b>第${i+1}題：</b><br>${imgHtml}題目：${question}<br>參考解答：<div class="ai-answer">${ans}</div></div><hr>`;
             }).join('');
             if (!window.MathJax) {
                 const script = document.createElement('script');
