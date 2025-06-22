@@ -379,13 +379,10 @@ def get_question_image(question_id):
     else:
         return '', 404
 
-def init_db():
-    with app.app_context():
-        print("正在檢查並建立資料庫表格...")
-        db.create_all()
-        print("資料庫表格已創建。")
+# 自動建立資料表（雲端 gunicorn 也適用）
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(host='0.0.0.0', port=10000)
