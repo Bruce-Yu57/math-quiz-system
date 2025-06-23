@@ -24,8 +24,8 @@
             background: #fff;
             border-radius: 8px;
             margin: 16px 0;
-            width: 76vw;
-            max-width: 720px;
+            width: 87vw;
+            max-width: 828px;
             height: 750px;
             max-height: 90vh;
             touch-action: none;
@@ -140,7 +140,7 @@ function renderQuestion() {
     const canvasArea = document.createElement('div');
     canvasArea.className = 'canvas-area';
     const canvas = document.createElement('canvas');
-    canvas.width = Math.min(window.innerWidth * 0.76, 720);
+    canvas.width = Math.min(window.innerWidth * 0.87, 828);
     canvas.height = Math.min(window.innerHeight * 0.9, 750);
     canvas.style.touchAction = 'none';
     canvasArea.appendChild(canvas);
@@ -249,10 +249,14 @@ function renderQuestion() {
     // 畫筆功能
     let drawing = false, lastX = 0, lastY = 0;
     canvas.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        e.preventDefault();
         drawing = true;
         [lastX, lastY] = [e.offsetX, e.offsetY];
-    });
+    }, { passive: false });
     canvas.addEventListener('pointermove', e => {
+        e.stopPropagation();
+        e.preventDefault();
         if (!drawing) return;
         const ctx = canvas.getContext('2d');
         ctx.lineWidth = erasing ? 24 : 4;
@@ -263,9 +267,17 @@ function renderQuestion() {
         ctx.lineTo(e.offsetX, e.offsetY);
         ctx.stroke();
         [lastX, lastY] = [e.offsetX, e.offsetY];
-    });
-    canvas.addEventListener('pointerup', () => { drawing = false; });
-    canvas.addEventListener('pointerleave', () => { drawing = false; });
+    }, { passive: false });
+    canvas.addEventListener('pointerup', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        drawing = false;
+    }, { passive: false });
+    canvas.addEventListener('pointerleave', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        drawing = false;
+    }, { passive: false });
     qDiv.appendChild(block);
     // 更新進度
     document.getElementById('progress').innerText = `第 ${currentIdx+1} / ${questions.length} 題`;
