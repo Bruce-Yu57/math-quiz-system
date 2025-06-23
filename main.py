@@ -16,7 +16,8 @@ from datetime import datetime
 import io
 
 # 載入 .env 設定
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
+print("DEBUG: DATABASE_URL =", os.getenv('DATABASE_URL'))
 
 # 從環境變數讀取 p2t API 的 URL
 P2T_API_URL = os.getenv('P2T_API_URL')
@@ -27,8 +28,9 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # 資料庫配置
 DATABASE_URL = os.getenv('DATABASE_URL')
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+if DATABASE_URL and (DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')):
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///math_quiz.db'
@@ -383,6 +385,7 @@ def get_question_image(question_id):
 def create_tables():
     with app.app_context():
         db.create_all()
+        print("目前資料庫連線：", db.engine.url)
 
 create_tables()
 
