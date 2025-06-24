@@ -24,7 +24,7 @@
             background: #fff;
             border-radius: 8px;
             margin: 16px 0 16px 0;
-            touch-action: none;
+            touch-action: pinch-zoom;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             flex: 1 1 auto;
         }
@@ -258,7 +258,7 @@ function renderQuestion() {
     block.appendChild(canvasArea);
     block.appendChild(resultDiv);
     // 畫筆功能
-    let drawing = false, lastX = 0, lastY = 0;
+    let drawing = false, lastX = 0, lastY = 0, drawingPointerId = null, activeTouchCount = 0;
     function getCanvasPos(e) {
         const rect = canvas.getBoundingClientRect();
         let x, y;
@@ -269,21 +269,31 @@ function renderQuestion() {
             x = e.clientX - rect.left;
             y = e.clientY - rect.top;
         }
-        // 修正縮放比例
         x *= canvas.width / rect.width;
         y *= canvas.height / rect.height;
         return [x, y];
     }
     canvas.addEventListener('pointerdown', e => {
+        // 只允許單指觸控或滑鼠
+        if (e.pointerType === 'touch') {
+            activeTouchCount++;
+            if (activeTouchCount > 1) {
+                drawing = false;
+                drawingPointerId = null;
+                return; // 多指時不繪圖，讓瀏覽器預設行為
+            }
+        }
+        if (drawingPointerId !== null) return;
         e.stopPropagation();
         e.preventDefault();
         drawing = true;
+        drawingPointerId = e.pointerId;
         [lastX, lastY] = getCanvasPos(e);
     }, { passive: false });
     canvas.addEventListener('pointermove', e => {
+        if (!drawing || e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
-        if (!drawing) return;
         const ctx = canvas.getContext('2d');
         ctx.lineWidth = erasing ? 24 : 4;
         ctx.lineCap = 'round';
@@ -296,14 +306,20 @@ function renderQuestion() {
         [lastX, lastY] = [x, y];
     }, { passive: false });
     canvas.addEventListener('pointerup', e => {
+        if (e.pointerType === 'touch') activeTouchCount = Math.max(0, activeTouchCount - 1);
+        if (e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
         drawing = false;
+        drawingPointerId = null;
     }, { passive: false });
     canvas.addEventListener('pointerleave', e => {
+        if (e.pointerType === 'touch') activeTouchCount = Math.max(0, activeTouchCount - 1);
+        if (e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
         drawing = false;
+        drawingPointerId = null;
     }, { passive: false });
     qDiv.appendChild(block);
     // 更新進度
