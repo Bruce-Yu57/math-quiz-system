@@ -174,6 +174,12 @@ function renderQuestion() {
         eraseBtn.innerText = erasing ? '畫筆' : '橡皮擦';
     };
     btnRow.appendChild(eraseBtn);
+    // 回到上一步按鈕
+    const undoBtn = document.createElement('button');
+    undoBtn.className = 'btn';
+    undoBtn.title = '回到上一步';
+    undoBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v2a7 7 0 1 1-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12l-3 0m0 0 3-3m-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    btnRow.appendChild(undoBtn);
     // 送出按鈕
     const submitBtn = document.createElement('button');
     submitBtn.className = 'btn';
@@ -272,19 +278,33 @@ function renderQuestion() {
         y *= canvas.height / rect.height;
         return [x, y];
     }
+    // --- 撤銷繪圖功能 ---
+    let undoStack = [];
+    function saveState() {
+        const ctx = canvas.getContext('2d');
+        undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        if (undoStack.length > 30) undoStack.shift(); // 最多保留30步
+    }
+    undoBtn.onclick = () => {
+        if (undoStack.length > 0) {
+            const ctx = canvas.getContext('2d');
+            ctx.putImageData(undoStack.pop(), 0, 0);
+        }
+    };
+    // --- 在每次開始畫時存狀態 ---
     canvas.addEventListener('pointerdown', e => {
         if (e.pointerType === 'touch') {
             activeTouchCount++;
             if (activeTouchCount > 1) {
                 drawing = false;
                 drawingPointerId = null;
-                // 多指時不阻止預設行為，讓瀏覽器可以縮放/移動
                 return;
             }
         }
         if (drawingPointerId !== null) return;
         e.stopPropagation();
-        e.preventDefault(); // 只在單指時阻止預設行為
+        e.preventDefault();
+        saveState(); // 新增：畫之前存狀態
         drawing = true;
         drawingPointerId = e.pointerId;
         [lastX, lastY] = getCanvasPos(e);
