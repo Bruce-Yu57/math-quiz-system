@@ -16,7 +16,7 @@
             margin: 16px 0;
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
+            align-items: stretch;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -32,9 +32,9 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            justify-content: flex-start;
+            justify-content: center;
             align-items: center;
-            margin: 16px 0 0 0;
+            margin: 0 0 0 0;
             width: 54px;
         }
         .btn { background: #3182ce; color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 1em; cursor: pointer; margin: 8px; }
@@ -138,11 +138,10 @@ function renderQuestion() {
     // Canvas
     const canvasArea = document.createElement('div');
     canvasArea.className = 'canvas-area';
-    // 防止右鍵選單
-    canvasArea.oncontextmenu = () => false;
-    // 防止長按選取
-    canvasArea.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
-    canvasArea.addEventListener('mousedown', e => { e.preventDefault(); }, { passive: false });
+    // 只針對 canvas 本身阻止選取/右鍵
+    canvas.oncontextmenu = () => false;
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+    canvas.addEventListener('mousedown', e => { e.preventDefault(); }, { passive: false });
     const canvas = document.createElement('canvas');
     // === 修正：canvas 寬高屬性與 style 完全一致 ===
     const w = Math.min(window.innerWidth * 0.87, 828);
