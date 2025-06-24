@@ -273,18 +273,18 @@ function renderQuestion() {
         return [x, y];
     }
     canvas.addEventListener('pointerdown', e => {
-        // 只允許單指觸控或滑鼠
         if (e.pointerType === 'touch') {
             activeTouchCount++;
             if (activeTouchCount > 1) {
                 drawing = false;
                 drawingPointerId = null;
-                return; // 多指時不繪圖，讓瀏覽器預設行為
+                // 多指時不阻止預設行為，讓瀏覽器可以縮放/移動
+                return;
             }
         }
         if (drawingPointerId !== null) return;
         e.stopPropagation();
-        e.preventDefault();
+        e.preventDefault(); // 只在單指時阻止預設行為
         drawing = true;
         drawingPointerId = e.pointerId;
         [lastX, lastY] = getCanvasPos(e);
