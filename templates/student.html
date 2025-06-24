@@ -138,11 +138,11 @@ function renderQuestion() {
     // Canvas
     const canvasArea = document.createElement('div');
     canvasArea.className = 'canvas-area';
-    // 只針對 canvas 本身阻止選取/右鍵
+    const canvas = document.createElement('canvas');
+    // 綁定事件（必須在宣告 canvas 之後）
     canvas.oncontextmenu = () => false;
     canvas.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
     canvas.addEventListener('mousedown', e => { e.preventDefault(); }, { passive: false });
-    const canvas = document.createElement('canvas');
     // === 修正：canvas 寬高屬性與 style 完全一致 ===
     const w = Math.min(window.innerWidth * 0.87, 828);
     const h = Math.min(window.innerHeight * 0.9, 750);
