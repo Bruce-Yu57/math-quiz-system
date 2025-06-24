@@ -298,18 +298,20 @@ function renderQuestion() {
             if (activeTouchCount > 1) {
                 drawing = false;
                 drawingPointerId = null;
+                // 多指時不阻止預設行為
                 return;
             }
         }
         if (drawingPointerId !== null) return;
         e.stopPropagation();
-        e.preventDefault();
-        saveState(); // 新增：畫之前存狀態
+        e.preventDefault(); // 只在單指時阻止
+        saveState();
         drawing = true;
         drawingPointerId = e.pointerId;
         [lastX, lastY] = getCanvasPos(e);
     }, { passive: false });
     canvas.addEventListener('pointermove', e => {
+        if (e.pointerType === 'touch' && activeTouchCount > 1) return; // 多指時不阻止
         if (!drawing || e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
@@ -326,6 +328,7 @@ function renderQuestion() {
     }, { passive: false });
     canvas.addEventListener('pointerup', e => {
         if (e.pointerType === 'touch') activeTouchCount = Math.max(0, activeTouchCount - 1);
+        if (e.pointerType === 'touch' && activeTouchCount > 0) return; // 多指時不阻止
         if (e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
@@ -334,6 +337,7 @@ function renderQuestion() {
     }, { passive: false });
     canvas.addEventListener('pointerleave', e => {
         if (e.pointerType === 'touch') activeTouchCount = Math.max(0, activeTouchCount - 1);
+        if (e.pointerType === 'touch' && activeTouchCount > 0) return; // 多指時不阻止
         if (e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
