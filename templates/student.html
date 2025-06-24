@@ -141,7 +141,6 @@ function renderQuestion() {
     const canvas = document.createElement('canvas');
     // 綁定事件（必須在宣告 canvas 之後）
     canvas.oncontextmenu = () => false;
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
     canvas.addEventListener('mousedown', e => { e.preventDefault(); }, { passive: false });
     // === 修正：canvas 寬高屬性與 style 完全一致 ===
     const w = Math.min(window.innerWidth * 0.87, 828);
@@ -150,7 +149,7 @@ function renderQuestion() {
     canvas.height = h;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    canvas.style.touchAction = 'none';
+    canvas.style.touchAction = 'pinch-zoom';
     // === END 修正 ===
     canvasArea.appendChild(canvas);
     // 清除、橡皮擦、送出按鈕
