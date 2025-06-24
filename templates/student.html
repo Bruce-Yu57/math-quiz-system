@@ -14,29 +14,28 @@
             border-radius: 10px;
             background: #ebf8ff;
             margin: 16px 0;
-            text-align: center;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            flex-direction: row;
+            align-items: flex-start;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .canvas-area canvas {
             background: #fff;
             border-radius: 8px;
-            margin: 16px 0;
-            width: 87vw;
-            max-width: 828px;
-            height: 750px;
-            max-height: 90vh;
+            margin: 16px 0 16px 0;
             touch-action: none;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            flex: 1 1 auto;
         }
         .canvas-btn-row {
             display: flex;
-            flex-direction: row;
-            gap: 18px;
-            justify-content: center;
-            margin-bottom: 8px;
+            flex-direction: column;
+            gap: 12px;
+            justify-content: flex-start;
+            align-items: center;
+            margin: 16px 0 0 0;
+            width: 54px;
         }
         .btn { background: #3182ce; color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 1em; cursor: pointer; margin: 8px; }
         .btn:disabled { background: #a0aec0; cursor: not-allowed; }
@@ -139,10 +138,21 @@ function renderQuestion() {
     // Canvas
     const canvasArea = document.createElement('div');
     canvasArea.className = 'canvas-area';
+    // 防止右鍵選單
+    canvasArea.oncontextmenu = () => false;
+    // 防止長按選取
+    canvasArea.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+    canvasArea.addEventListener('mousedown', e => { e.preventDefault(); }, { passive: false });
     const canvas = document.createElement('canvas');
-    canvas.width = Math.min(window.innerWidth * 0.87, 828);
-    canvas.height = Math.min(window.innerHeight * 0.9, 750);
+    // === 修正：canvas 寬高屬性與 style 完全一致 ===
+    const w = Math.min(window.innerWidth * 0.87, 828);
+    const h = Math.min(window.innerHeight * 0.9, 750);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
     canvas.style.touchAction = 'none';
+    // === END 修正 ===
     canvasArea.appendChild(canvas);
     // 清除、橡皮擦、送出按鈕
     const btnRow = document.createElement('div');
@@ -171,7 +181,7 @@ function renderQuestion() {
     submitBtn.innerText = '送出';
     btnRow.appendChild(submitBtn);
     canvasArea.appendChild(btnRow);
-    block.appendChild(canvasArea);
+    canvasArea.appendChild(canvas);
     // 批改結果
     const resultDiv = document.createElement('div');
     resultDiv.className = 'result';
@@ -245,14 +255,30 @@ function renderQuestion() {
             ctx.putImageData(imageData, 0, 0);
         }, 'image/png');
     };
+    block.appendChild(canvasArea);
     block.appendChild(resultDiv);
     // 畫筆功能
     let drawing = false, lastX = 0, lastY = 0;
+    function getCanvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        let x, y;
+        if (e.touches && e.touches.length > 0) {
+            x = e.touches[0].clientX - rect.left;
+            y = e.touches[0].clientY - rect.top;
+        } else {
+            x = e.clientX - rect.left;
+            y = e.clientY - rect.top;
+        }
+        // 修正縮放比例
+        x *= canvas.width / rect.width;
+        y *= canvas.height / rect.height;
+        return [x, y];
+    }
     canvas.addEventListener('pointerdown', e => {
         e.stopPropagation();
         e.preventDefault();
         drawing = true;
-        [lastX, lastY] = [e.offsetX, e.offsetY];
+        [lastX, lastY] = getCanvasPos(e);
     }, { passive: false });
     canvas.addEventListener('pointermove', e => {
         e.stopPropagation();
@@ -264,9 +290,10 @@ function renderQuestion() {
         ctx.strokeStyle = erasing ? '#fff' : '#222';
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
-        ctx.lineTo(e.offsetX, e.offsetY);
+        const [x, y] = getCanvasPos(e);
+        ctx.lineTo(x, y);
         ctx.stroke();
-        [lastX, lastY] = [e.offsetX, e.offsetY];
+        [lastX, lastY] = [x, y];
     }, { passive: false });
     canvas.addEventListener('pointerup', e => {
         e.stopPropagation();

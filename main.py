@@ -311,7 +311,8 @@ def get_questions():
     if not questions:
         return jsonify({'error': '查無此 session'}), 404
     
-    q_list = [{'type': 'img', 'content': f'/uploads/{q.image_path}', 'text': q.ocr_text} for q in questions]
+    # 改為統一走 image API
+    q_list = [{'type': 'img', 'content': f'/api/image/{q.id}', 'text': q.ocr_text} for q in questions]
     return jsonify({'questions': q_list})
 
 
