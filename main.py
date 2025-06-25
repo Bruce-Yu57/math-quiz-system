@@ -12,8 +12,9 @@ import openai
 import time
 import threading
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import io
+import pytz
 
 # 載入 .env 設定
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -215,7 +216,7 @@ def upload_questions():
 
     # 寫入資料庫
     session_id = str(uuid.uuid4())
-    quizset = QuizSet(session_id=session_id, teacher=teacher, created_at=datetime.now(), is_active=True)
+    quizset = QuizSet(session_id=session_id, teacher=teacher, created_at=utcnow(), is_active=True)
     db.session.add(quizset)
     db.session.commit()
 
@@ -312,7 +313,7 @@ def upload_answer():
         image_path=filename,
         ocr_text=stu_latex,
         ai_feedback=gpt_result,
-        created_at=datetime.now()
+        created_at=utcnow()
     )
     db.session.add(stu_answer)
     db.session.commit()
@@ -350,11 +351,10 @@ def all_quizsets():
     quizsets = QuizSet.query.order_by(QuizSet.created_at.desc()).all()
     result = []
     for q_set in quizsets:
-        # 為了提高效率，我們只取回必要的資訊
         result.append({
             'session_id': q_set.session_id,
             'teacher': q_set.teacher,
-            'created_at': q_set.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            'created_at': to_taipei(q_set.created_at).strftime('%Y-%m-%d %H:%M:%S')
         })
     return jsonify(result)
 
@@ -419,7 +419,7 @@ def get_student_answers():
         result.append({
             'student_code': answer.student_code or '未填寫',
             'image_path': f'/uploads/{answer.image_path}' if answer.image_path else None,
-            'created_at': answer.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'created_at': to_taipei(answer.created_at).strftime('%Y-%m-%d %H:%M:%S'),
             'question_idx': answer.question.idx if answer.question else None
         })
     
@@ -443,7 +443,7 @@ def get_student_last_answer():
         return jsonify({'error': '查無作答記錄'}), 404
     return jsonify({
         'image_path': f'/uploads/{last_answer.image_path}',
-        'created_at': last_answer.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        'created_at': to_taipei(last_answer.created_at).strftime('%Y-%m-%d %H:%M:%S')
     })
 
 # 只保留這一個自動建表區塊
@@ -451,6 +451,15 @@ def create_tables():
     with app.app_context():
         db.create_all()
         print("目前資料庫連線：", db.engine.url)
+
+# UTC now helper
+TPE = pytz.timezone('Asia/Taipei')
+def utcnow():
+    return datetime.now(timezone.utc)
+def to_taipei(dt):
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(TPE)
 
 create_tables()
 
