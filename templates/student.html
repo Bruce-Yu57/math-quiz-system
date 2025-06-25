@@ -112,6 +112,7 @@
 const sessionId = '{{ session_id }}';
 let questions = [];
 let currentIdx = 0;
+let seatNumberValue = '';
 
 window.onload = async function() {
     // 取得題目
@@ -128,13 +129,53 @@ function renderQuestion() {
         qDiv.innerHTML = '<div style="color:red;">查無題目，請確認 QR code 是否正確</div>';
         return;
     }
+    
+    // 只在第一題顯示座號輸入欄位
+    if (currentIdx === 0) {
+        const seatInputContainer = document.createElement('div');
+        seatInputContainer.style.cssText = 'margin-bottom: 20px; padding: 15px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;';
+        
+        const seatLabel = document.createElement('label');
+        seatLabel.textContent = '請輸入班級座號：';
+        seatLabel.style.cssText = 'font-weight: bold; color: #2d3748; margin-right: 10px;';
+        
+        const seatInput = document.createElement('input');
+        seatInput.type = 'text';
+        seatInput.placeholder = '例如: 80118';
+        seatInput.id = 'seatNumber';
+        seatInput.value = seatNumberValue;
+        seatInput.style.cssText = `
+            padding: 8px 12px;
+            border: 2px solid #90cdf4;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #fff;
+            width: 200px;
+        `;
+        seatInput.oninput = function() {
+            seatNumberValue = seatInput.value;
+        };
+        
+        seatInputContainer.appendChild(seatLabel);
+        seatInputContainer.appendChild(seatInput);
+        qDiv.appendChild(seatInputContainer);
+    }
+    
     const q = questions[currentIdx];
     const block = document.createElement('div');
     block.className = 'question-block';
+    
+    // 題目區塊
+    const questionHeader = document.createElement('div');
+    questionHeader.style.cssText = 'margin-bottom:18px;';
+    
     // 將題目區塊的 $...$ 或 $$...$$ 都轉為 display math
     let qContent = q.type === 'img' ? `<img src='${q.content.startsWith('/') ? location.origin : ''}${q.content}' style='max-width:95vw;max-height:220px;box-shadow:0 2px 8px #bbb;border-radius:8px;'>`
         : q.content.replace(/\$\$(.+?)\$\$/gs, (_, m) => `$$${m}$$`).replace(/\$(.+?)\$/gs, (_, m) => `$$${m}$$`);
-    block.innerHTML = `<div style='margin-bottom:18px;'><b>第${currentIdx+1}題：</b><br>${qContent}</div>`;
+    
+    questionHeader.innerHTML = `<div><b>第${currentIdx+1}題：</b><br>${qContent}</div>`;
+    block.appendChild(questionHeader);
+    
     // Canvas
     const canvasArea = document.createElement('div');
     canvasArea.className = 'canvas-area';
@@ -191,6 +232,17 @@ function renderQuestion() {
     resultDiv.className = 'result';
     // 送出事件
     submitBtn.onclick = async () => {
+        // 只在第一題檢查座號必填
+        let seatNumber = seatNumberValue;
+        if (currentIdx === 0) {
+            seatNumber = document.getElementById('seatNumber').value.trim();
+            seatNumberValue = seatNumber;
+        }
+        if (!seatNumber) {
+            alert('請先輸入座號！');
+            return;
+        }
+        
         submitBtn.disabled = true;
         resultDiv.innerText = '辨識與批改中...';
         // 取得原始內容
@@ -206,6 +258,7 @@ function renderQuestion() {
             const formData = new FormData();
             formData.append('session_id', sessionId);
             formData.append('q_idx', currentIdx);
+            formData.append('student_code', seatNumber);
             formData.append('image', blob, `answer${currentIdx+1}.png`);
             const res = await fetch('/api/upload_answer', { method: 'POST', body: formData });
             const data = await res.json();
@@ -349,6 +402,22 @@ function renderQuestion() {
     // 按鈕狀態
     document.getElementById('prevBtn').disabled = currentIdx === 0;
     document.getElementById('nextBtn').disabled = currentIdx === questions.length-1;
+
+    // === 自動載入上次作答 ===
+    (async function loadLastAnswer() {
+        if (!seatNumberValue) return; // 沒有座號不查詢
+        const res = await fetch(`/api/get_student_last_answer?session_id=${sessionId}&q_idx=${currentIdx}&student_code=${encodeURIComponent(seatNumberValue)}`);
+        const data = await res.json();
+        if (data.image_path) {
+            const img = new Image();
+            img.onload = function() {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = data.image_path;
+        }
+    })();
 }
 
 document.getElementById('prevBtn').onclick = () => {

@@ -40,7 +40,11 @@ db = SQLAlchemy(app)
 
 # 載入 OpenAI API KEY
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-openai.api_key = OPENAI_API_KEY
+if not OPENAI_API_KEY:
+    print("警告：OPENAI_API_KEY 未設定，AI 功能將無法使用")
+    print("請在 .env 檔案中設定 OPENAI_API_KEY 或設定環境變數")
+else:
+    openai.api_key = OPENAI_API_KEY
 
 # --- 資料表定義 ---
 class QuizSet(db.Model):
@@ -110,6 +114,9 @@ def recognize_printed_question(filepath, img_b64):
     """
     使用 GPT-4o 進行印刷題目辨識。
     """
+    if not OPENAI_API_KEY:
+        return "[AI 服務未設定：請在 .env 檔案中設定 OPENAI_API_KEY]"
+    
     try:
         prompt = "請仔細辨識這張圖片中的數學題目，將所有文字、數字、符號和公式完整地轉錄出來。請保持原始格式，包括換行和空格。如果圖片中有多個題目，請用換行分隔。"
         
@@ -184,6 +191,9 @@ def upload_questions():
 
     # 呼叫 GPT 產生參考解答
     def get_gpt_answer(q_text, img_b64):
+        if not OPENAI_API_KEY:
+            return "[AI 服務未設定：請在 .env 檔案中設定 OPENAI_API_KEY]"
+            
         prompt = f"請根據下列數學題目，詳細列出完整的解題步驟，最後明確給出標準答案。請用清楚的數學排版（如 LaTeX），並適當使用粗體標示重點。僅回傳解題過程與標準答案，不要額外解釋：\n題目：{q_text}"
         try:
             model_to_use = "gpt-4o" if img_b64 else "gpt-4-1106-preview"
@@ -243,10 +253,14 @@ def upload_questions():
 def upload_answer():
     session_id = request.form.get('session_id')
     q_idx = request.form.get('q_idx')
+    student_code = request.form.get('student_code')
     file = request.files.get('image')
 
     if not all([session_id, q_idx is not None, file]):
         return jsonify({'error': '缺少必要參數 (session_id, q_idx, image)'}), 400
+    
+    if not student_code or not student_code.strip():
+        return jsonify({'error': '請輸入座號'}), 400
     
     try:
         q_idx = int(q_idx)
@@ -272,24 +286,29 @@ def upload_answer():
         question_text = question.ocr_text or ''
         # 新增：先顯示學生辨識結果
         latex_display = f"【學生辨識結果（LaTeX）】\n{stu_latex}\n\n"
-        prompt = f"請以家教老師寬鬆的角度批改下列數學題目，重點在於學生的解題過程是否符合數學邏輯，不必要求與標準答案完全相同。只要學生的過程合理、有數學依據即可給予正面回饋。若學生有錯誤，請明確指出錯在哪一個步驟，並且一定要把正確的步驟詳細告訴他。請簡要說明理由。\n題目：{question_text}\n標準解答：{ref_answer}\n學生答案（LaTeX）：{stu_latex}"
-        try:
-            response = openai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "你是數學家教老師，批改時請以寬鬆、鼓勵、重邏輯不重格式的角度，學生只要過程合理即可給予正面回饋，不必要求與標準答案完全一致。若學生有錯誤，請明確指出錯在哪一個步驟，並且一定要把正確的步驟詳細告訴他。"},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=1500
-            )
-            gpt_result = latex_display + response.choices[0].message.content.strip()
-        except Exception as e:
-            gpt_result = latex_display + f"[AI批改失敗: {e}]"
+        
+        if not OPENAI_API_KEY:
+            gpt_result = latex_display + "[AI 批改服務未設定：請在 .env 檔案中設定 OPENAI_API_KEY]"
+        else:
+            prompt = f"請以家教老師寬鬆的角度批改下列數學題目，重點在於學生的解題過程是否符合數學邏輯，不必要求與標準答案完全相同。只要學生的過程合理、有數學依據即可給予正面回饋。若學生有錯誤，請明確指出錯在哪一個步驟，並且一定要把正確的步驟詳細告訴他。請簡要說明理由。\n題目：{question_text}\n標準解答：{ref_answer}\n學生答案（LaTeX）：{stu_latex}"
+            try:
+                response = openai.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "你是數學家教老師，批改時請以寬鬆、鼓勵、重邏輯不重格式的角度，學生只要過程合理即可給予正面回饋，不必要求與標準答案完全一致。若學生有錯誤，請明確指出錯在哪一個步驟，並且一定要把正確的步驟詳細告訴他。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=1500
+                )
+                gpt_result = latex_display + response.choices[0].message.content.strip()
+            except Exception as e:
+                gpt_result = latex_display + f"[AI批改失敗: {e}]"
 
     # 寫入學生作答紀錄
     stu_answer = StudentAnswer(
         session_id=session_id,
         question_id=question.id,
+        student_code=student_code.strip(),
         image_path=filename,
         ocr_text=stu_latex,
         ai_feedback=gpt_result,
@@ -381,6 +400,51 @@ def get_question_image(question_id):
         return send_from_directory(app.config['UPLOAD_FOLDER'], q.image_path)
     else:
         return '', 404
+
+@app.route('/api/get_student_answers')
+def get_student_answers():
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return jsonify({'error': '需要 session_id'}), 400
+        
+    # 取得該題組的所有學生作答，按送出時間排序
+    student_answers = StudentAnswer.query.filter_by(session_id=session_id)\
+        .order_by(StudentAnswer.created_at).all()
+    
+    if not student_answers:
+        return jsonify({'answers': []})
+    
+    result = []
+    for answer in student_answers:
+        result.append({
+            'student_code': answer.student_code or '未填寫',
+            'image_path': f'/uploads/{answer.image_path}' if answer.image_path else None,
+            'created_at': answer.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'question_idx': answer.question.idx if answer.question else None
+        })
+    
+    return jsonify({'answers': result})
+
+@app.route('/api/get_student_last_answer')
+def get_student_last_answer():
+    session_id = request.args.get('session_id')
+    q_idx = request.args.get('q_idx')
+    student_code = request.args.get('student_code')
+    if not all([session_id, q_idx, student_code]):
+        return jsonify({'error': '缺少必要參數'}), 400
+    question = Question.query.filter_by(session_id=session_id, idx=q_idx).first()
+    if not question:
+        return jsonify({'error': '查無此題目'}), 404
+    last_answer = StudentAnswer.query.filter_by(
+        question_id=question.id,
+        student_code=student_code
+    ).order_by(StudentAnswer.created_at.desc()).first()
+    if not last_answer:
+        return jsonify({'error': '查無作答記錄'}), 404
+    return jsonify({
+        'image_path': f'/uploads/{last_answer.image_path}',
+        'created_at': last_answer.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    })
 
 # 只保留這一個自動建表區塊
 def create_tables():
