@@ -111,6 +111,53 @@ def call_p2t_api(filepath):
         print(f"呼叫 p2t API 時發生未知錯誤: {e}")
         return f"[辨識服務發生未知錯誤]"
 
+def recognize_handwritten_answer(filepath):
+    """
+    使用 GPT-4o 進行手寫數學式辨識。
+    """
+    if not OPENAI_API_KEY:
+        print("錯誤：OPENAI_API_KEY 環境變數未設定。")
+        return "[AI 服務未設定：請在 .env 檔案中設定 OPENAI_API_KEY]"
+    
+    try:
+        # 讀取圖片檔案並轉為 base64
+        with open(filepath, 'rb') as f:
+            img_bytes = f.read()
+            img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+        
+        prompt = """請仔細辨識這張手寫數學答案圖片，將所有內容完整轉錄出來，包括：
+
+1. 手寫的數學符號、數字、字母和公式 - 請轉為 LaTeX 格式
+2. 繁體中文解題用詞 - 如「假設」、「令」、「因為」、「所以」、「或」、「且」、「若」、「則」、「故」、「得」、「代入」、「移項」、「化簡」等
+3. 解題過程說明文字 - 保留原始的中文描述
+
+請按照以下格式輸出：
+- 數學公式用 LaTeX 格式：如 $x^2 + 2x + 1 = 0$
+- 中文解題用詞直接保留：如「假設 x = 2」
+- 保持原始的解題邏輯順序和換行
+
+請完整保留所有解題過程，不要遺漏任何文字或符號。"""
+        
+        messages = [
+            {"role": "system", "content": "你是一個專業的手寫數學辨識助手，請準確地將手寫的數學答案轉錄，包括數學公式（LaTeX格式）和中文解題用詞。"},
+            {"role": "user", "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+            ]}
+        ]
+        
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=800
+        )
+        
+        return response.choices[0].message.content.strip()
+        
+    except Exception as e:
+        print(f"GPT-4o 手寫辨識失敗: {e}")
+        return f"[手寫辨識失敗: {e}]"
+
 def recognize_printed_question(filepath, img_b64):
     """
     使用 GPT-4o 進行印刷題目辨識。
@@ -276,11 +323,11 @@ def upload_answer():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
 
-    # 改為呼叫外部 API 進行辨識
-    stu_latex = call_p2t_api(filepath)
+    # 使用 GPT-4o 進行手寫辨識
+    stu_latex = recognize_handwritten_answer(filepath)
     
     # 檢查辨識結果是否成功
-    if stu_latex.startswith('[辨識服務') or stu_latex.startswith('[辨識失敗'):
+    if stu_latex.startswith('[AI 服務未設定') or stu_latex.startswith('[手寫辨識失敗'):
         gpt_result = f"手寫辨識失敗：{stu_latex}\n\n請重新手寫答案並再次提交。"
     else:
         ref_answer = question.ai_answer or ''
