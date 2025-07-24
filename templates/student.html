@@ -345,7 +345,7 @@ function renderQuestion() {
     };
     // --- 在每次開始畫時存狀態 ---
     canvas.addEventListener('pointerdown', e => {
-        if (e.pointerType === 'touch') {
+        if (e.pointerType === 'touch' || e.pointerType === 'pen') {
             activeTouchCount++;
             if (activeTouchCount > 1) {
                 drawing = false;
@@ -363,7 +363,7 @@ function renderQuestion() {
         [lastX, lastY] = getCanvasPos(e);
     }, { passive: false });
     canvas.addEventListener('pointermove', e => {
-        if (e.pointerType === 'touch' && activeTouchCount > 1) return; // 多指時不阻止
+        if ((e.pointerType === 'touch' || e.pointerType === 'pen') && activeTouchCount > 1) return; // 多指時不阻止
         if (!drawing || e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
@@ -379,8 +379,8 @@ function renderQuestion() {
         [lastX, lastY] = [x, y];
     }, { passive: false });
     canvas.addEventListener('pointerup', e => {
-        if (e.pointerType === 'touch') activeTouchCount = Math.max(0, activeTouchCount - 1);
-        if (e.pointerType === 'touch' && activeTouchCount > 0) return; // 多指時不阻止
+        if (e.pointerType === 'touch' || e.pointerType === 'pen') activeTouchCount = Math.max(0, activeTouchCount - 1);
+        if ((e.pointerType === 'touch' || e.pointerType === 'pen') && activeTouchCount > 0) return; // 多指時不阻止
         if (e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
@@ -388,8 +388,8 @@ function renderQuestion() {
         drawingPointerId = null;
     }, { passive: false });
     canvas.addEventListener('pointerleave', e => {
-        if (e.pointerType === 'touch') activeTouchCount = Math.max(0, activeTouchCount - 1);
-        if (e.pointerType === 'touch' && activeTouchCount > 0) return; // 多指時不阻止
+        if (e.pointerType === 'touch' || e.pointerType === 'pen') activeTouchCount = Math.max(0, activeTouchCount - 1);
+        if ((e.pointerType === 'touch' || e.pointerType === 'pen') && activeTouchCount > 0) return; // 多指時不阻止
         if (e.pointerId !== drawingPointerId) return;
         e.stopPropagation();
         e.preventDefault();
